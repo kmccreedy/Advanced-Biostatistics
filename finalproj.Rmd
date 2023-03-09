@@ -1,0 +1,174 @@
+---
+title: "adv biostat final project"
+output:
+  pdf_document: default
+  html_document: default
+date: "2022-12-15"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#load data
+library(readxl)
+library(readxl)
+remove(FIN)
+FIN <- read_excel("FIN.xlsx", col_types = c("numeric", 
+    "numeric", "numeric", "text", "text", 
+    "text", "text", "numeric", "numeric", 
+    "text", "numeric", "text"))
+Fin2<-na.omit(FIN)
+
+#executive summary of results
+library(psych) 
+describe(Fin2)
+summary(Fin2$sid)
+library(dplyr)
+attach(Fin2)
+length(unique(sid))
+
+#summary statistics for connect
+describe(Fin2$connect)
+
+## histogram of connect
+hist(Fin2$connect)
+library(ggplot2)
+ggplot(data = Fin2,
+       mapping = aes(connect)) + 
+	geom_histogram(binwidth = 1,
+                   color = "white") +
+	labs(x = "School Connectedness Scale", y="Number of Observations")
+describe(Fin2$connect)
+
+## table for univariate association of connect & independent variables
+library(survey)
+d1 <- svydesign(id=~sid, weights=~PW,strata=~Country, nest=TRUE, survey.lonely.psu = "adjust", data=Fin2)
+summary(d1)
+
+# location & connect univariate analysis
+locationmodel<-svyglm(connect~as.factor(location), design=d1)
+summary(locationmodel)
+confint(locationmodel)
+
+# age & connect univariate analysis
+agemodel<-svyglm(connect~age, design=d1)
+summary(agemodel)
+confint(agemodel)
+
+# ses & connect univariate analysis
+sesmodel<-svyglm(connect~ses, design=d1)
+summary(sesmodel)
+confint(sesmodel)
+
+
+# wealth & connect univariate analysis
+wealthmodel<-svyglm(connect~wealth, design=d1)
+summary(wealthmodel)
+confint(wealthmodel)
+
+# enthusiasm & connect univariate analysis
+enthusiasmmodel<-svyglm(connect~as.factor(enthusiasm), design=d1)
+summary(enthusiasmmodel)
+confint(enthusiasmmodel)
+
+# public & connect univariate analysis
+publicmodel<-svyglm(connect~as.factor(public), design=d1)
+summary(publicmodel)
+confint(publicmodel)
+
+# country & connect univariate analysis
+countrymodel<-svyglm(connect~as.factor(Country), design=d1)
+summary(countrymodel)
+confint(countrymodel)
+
+# size & connect univariate analysis
+sizemodel<-svyglm(connect~size, design=d1)
+summary(sizemodel)
+confint(sizemodel)
+
+
+# Model A: Multilevel Linear Model
+modelA<-svyglm(connect~ses+age+as.factor(public)+wealth, design=d1)
+summary(modelA)
+tbl_regression(modelA)
+plot(modelA)
+
+#model b
+# Compute an ICC for the null model & marginal R-squared
+attach(Fin2)
+library(lme4)
+Modelb_null<-glmer(connect~1+(1|sid))
+summary(Modelb_null)
+plot(Modelb_null)
+library(piecewiseSEM)
+rsquared(Modelb_null)
+library(performance)
+icc(Modelb_null)
+
+#Model B SES centering
+library(robumeta)
+ses_c<- group.center(ses, sid)
+table(tapply(ses_c, sid, FUN=mean))
+ses_c[1]
+
+#Random intercept model for connect and ses_c
+model3<-lmer(connect~ses_c + (1|sid), data=Fin2)
+# extract coefficients
+coefs2 <- data.frame(coef(summary(model3)))
+# use normal distribution to approximate p-value
+coefs2$p.z <- 2 * (1 - pnorm(abs(coefs2$t.value)))
+coefs2
+anova(model3)
+summary(model3)
+tbl_regression(model3)
+plot(model3)
+rsquared(model3)
+icc(model3)
+
+#random intercept model for ses, age, public, wealth, with country
+model4<-lmer(connect~ses+age+public+wealth + (1|sid) +(1|sid:Country), data=Fin2)
+# extract coefficients
+coefs <- data.frame(coef(summary(model4)))
+# use normal distribution to approximate p-value
+coefs$p.z <- 2 * (1 - pnorm(abs(coefs$t.value)))
+coefs
+
+summary(model4)
+tbl_regression(model4)
+plot(model4)
+rsquared(model4)
+icc(model4)
+
+#re-weighting PW for wgt = sample size, re-run model with wgt
+wgtscore <- 589/sum(PW)
+wgt <-transform(Fin2, wgt=PW*0.005298587)
+model5<-lmer(connect~ses_c + (1|sid), weights=wgt, data=wgt)
+# extract coefficients
+coefs3 <- data.frame(coef(summary(model5)))
+# use normal distribution to approximate p-value
+coefs3$p.z <- 2 * (1 - pnorm(abs(coefs3$t.value)))
+coefs3
+summary(model5)
+tbl_regression(model5)
+
+```
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
